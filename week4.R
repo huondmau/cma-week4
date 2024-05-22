@@ -14,8 +14,6 @@ wildschwein <- read_delim("Datasets/wildschwein_BE_2056.csv", ",")
 messenger <- read_delim("Datasets/example_route.csv")
 
 
-# Careful! What Timezone is assumed?
-
 messenger <- messenger |>
   st_as_sf(coords = c("x", "y"), crs = 2056, remove = FALSE)
 
@@ -70,10 +68,70 @@ rle_id <- function(vec) {
   as.factor(rep(seq_along(x), times = x))
 }
 
-your_data_frame <- your_data_frame |>
+messenger <- messenger |>
   mutate(segment_id = rle_id(static))
 
 # Task 5: Similarity measures
 
+pedestrian <- read_delim("Datasets/pedestrian.csv")
+
+# convert to sf
+pedestrian <- pedestrian |>
+  st_as_sf(coords = c("E", "N"), crs = 2056, remove = FALSE)
+
+ggplot(pedestrian, aes(E, N)) +
+  geom_sf() +
+  facet_wrap(~TrajID)
+
 # Task 6: Calculate similarity
 
+install.packages("SimilarityMeasures")
+library(SimilarityMeasures)
+
+help(package = "SimilarityMeasures")
+
+# Extract coordinates for each trajectory
+trajectory1 <- pedestrian %>% filter(TrajID == 1) %>% st_coordinates()
+trajectory2 <- pedestrian %>% filter(TrajID == 2) %>% st_coordinates()
+trajectory3 <- pedestrian %>% filter(TrajID == 3) %>% st_coordinates()
+trajectory4 <- pedestrian %>% filter(TrajID == 4) %>% st_coordinates()
+trajectory5 <- pedestrian %>% filter(TrajID == 5) %>% st_coordinates()
+trajectory6 <- pedestrian %>% filter(TrajID == 6) %>% st_coordinates()
+
+# Initialize an empty data frame
+results <- data.frame(
+  Trajectory1 = integer(),
+  Trajectory2 = integer(),
+  DTW = numeric(),
+  EditDist = numeric(),
+  Frechet = numeric(),
+  LCSS = numeric(),
+  stringsAsFactors = FALSE
+)
+
+# Define a function to perform comparisons and store results
+compare_trajectories <- function(traj1, traj2, id1, id2) {
+  dtw_result <- DTW(traj1, traj2)
+  editdist_result <- EditDist(traj1, traj2)
+  frechet_result <- Frechet(traj1, traj2)
+  lcss_result <- LCSS(traj1, traj2)
+  
+  return(data.frame(
+    Trajectory1 = id1,
+    Trajectory2 = id2,
+    DTW = dtw_result,
+    EditDist = editdist_result,
+    Frechet = frechet_result,
+    LCSS = lcss_result,
+    stringsAsFactors = FALSE
+  ))
+}
+
+# Compare trajectory 1 with trajectories 2-6
+results <- rbind(results, compare_trajectories(trajectory1, trajectory2, 1, 2))
+results <- rbind(results, compare_trajectories(trajectory1, trajectory3, 1, 3))
+results <- rbind(results, compare_trajectories(trajectory1, trajectory4, 1, 4))
+results <- rbind(results, compare_trajectories(trajectory1, trajectory5, 1, 5))
+results <- rbind(results, compare_trajectories(trajectory1, trajectory6, 1, 6))
+
+results
